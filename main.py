@@ -7,16 +7,10 @@ class Board:
         self.width = width
         self.height = height
         self.board = [[0] * width for _ in range(height)]
-        # значения по умолчанию
-        self.left = 10
-        self.top = 10
+        self.board[5][5] = 1
+        self.left = 135
+        self.top = 30
         self.cell_size = 30
-
-    # настройка внешнего вида
-    def set_view(self, left, top, cell_size):
-        self.left = left
-        self.top = top
-        self.cell_size = cell_size
 
     def render(self, screen):
         for y_dash in range(self.width):
@@ -30,7 +24,7 @@ class Board:
 
     def get_click(self, mouse_pos):
         cell = self.get_cell(mouse_pos)
-        self.on_click(cell)
+        print(cell)
 
     def get_cell(self, mouse_pos):
         cell_x = (mouse_pos[0] - self.left) // self.cell_size
@@ -41,13 +35,7 @@ class Board:
         return None
 
     def on_click(self, cell):
-        if cell:
-            for i in range(self.width):
-                self.board[cell[1]][i] = (self.board[cell[1]][i] + 1) % 2
-            for j in range(self.height):
-                if cell[1] != j:
-                    self.board[j][cell[0]] = (self.board[j][cell[0]] + 1) % 2
-        print(cell)
+        pass
 
 
 pygame.init()
@@ -55,7 +43,7 @@ size = widgh, height = 600, 500
 screen = pygame.display.set_mode(size)
 pygame.display.set_caption('Under World')
 
-board = Board(10, 10)
+board = Board(11, 11)
 running = True
 while running:
     for event in pygame.event.get():
