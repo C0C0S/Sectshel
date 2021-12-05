@@ -8,6 +8,11 @@ class Board:
         self.height = height
         self.board = [[0] * width for _ in range(height)]
         self.board[5][5] = 1
+        self.board[0][0] = 2
+        self.board[0][1] = 2
+        self.board[1][1] = 2
+        self.board[1][0] = 2
+        print(self.board)
         self.left = 135
         self.top = 30
         self.cell_size = 30
@@ -35,9 +40,36 @@ class Board:
     def cell_vision(self, mouse_pos):
         cell = self.get_cell(mouse_pos)
         if cell:
-            x = cell[0] * self.cell_size + self.left
-            y = cell[1] * self.cell_size + self.top
-            pygame.draw.rect(screen, (100, 110, 255), (x, y, self.cell_size, self.cell_size), 1)
+            if self.board[cell[1]][cell[0]] == 0:
+                x = cell[0] * self.cell_size + self.left
+                y = cell[1] * self.cell_size + self.top
+                pygame.draw.rect(screen, (100, 110, 255), (x, y, self.cell_size, self.cell_size), 1)
+
+            elif self.board[cell[1]][cell[0]] == 2:
+                if cell[1] - 3 >= 0:
+                    f1 = cell[1] - 3
+                else:
+                    f1 = 0
+                if cell[1] + 3 <= 11:
+                    f2 = cell[1] + 3
+                else:
+                    f2 = 11
+
+                for i in range(f1, f2):
+                    if cell[0] - 3 >= 0:
+                        t1 = cell[0] - 3
+                    else:
+                        t1 = 0
+                    if cell[0] + 3 <= 11:
+                        t2 = cell[0] + 3
+                    else:
+                        t2 = 11
+
+                    for j in range(t1, t2):
+                        if self.board[i][j] != 0:
+                            x = j * self.cell_size + self.left
+                            y = i * self.cell_size + self.top
+                            pygame.draw.rect(screen, (100, 110, 255), (x, y, self.cell_size, self.cell_size), 1)
 
 
 class Hero:
