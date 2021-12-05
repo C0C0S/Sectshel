@@ -13,14 +13,9 @@ class Board:
         self.cell_size = 30
 
     def render(self, screen):
-        for y_dash in range(self.width):
-            for x_dash in range(self.height):
-                x = self.left + self.cell_size * y_dash
-                y = self.top + self.cell_size * x_dash
-                if self.board[x_dash][y_dash] == 0:
-                    pygame.draw.rect(screen, (255, 255, 255), (x, y, self.cell_size, self.cell_size), 1)
-                else:
-                    pygame.draw.rect(screen, (255, 255, 255), (x, y, self.cell_size, self.cell_size), 0)
+        x = self.cell_size * self.width
+        y = self.cell_size * self.height
+        pygame.draw.rect(screen, (255, 255, 255), (self.left, self.top, x, y), 1)
 
     def get_click(self, mouse_pos):
         cell = self.get_cell(mouse_pos)
@@ -37,6 +32,21 @@ class Board:
     def on_click(self, cell):
         pass
 
+    def cell_vision(self, mouse_pos):
+        cell = self.get_cell(mouse_pos)
+        if cell:
+            x = cell[0] * self.cell_size + self.left
+            y = cell[1] * self.cell_size + self.top
+            pygame.draw.rect(screen, (100, 110, 255), (x, y, self.cell_size, self.cell_size), 1)
+
+
+class Hero:
+    pass
+
+
+class Enemy:
+    pass
+
 
 pygame.init()
 size = widgh, height = 600, 500
@@ -51,6 +61,8 @@ while running:
             running = False
         if event.type == pygame.MOUSEBUTTONDOWN:
             board.get_click(event.pos)
-    screen.fill((0, 0, 0))
+        if event.type == pygame.MOUSEMOTION:
+            screen.fill((0, 0, 0))
+            board.cell_vision(event.pos)
     board.render(screen)
     pygame.display.flip()
