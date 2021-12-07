@@ -7,12 +7,22 @@ class Board:
     def __init__(self, width, height, id, board_id):
         self.width = width
         self.height = height
+        self.board = [[0] * width for _ in range(height)]
         if board_id == 0:
-            self.board = [[0] * width for _ in range(height)]
-            self.board[5][5] = 1
             for i in range(2):
                 for j in range(len(self.board)):
                     self.board[i][j] = 3
+            for i in range(2, 11):
+                for j in range(4, 7):
+                    self.board[i][j] = 4
+            for j in range(4, 7):
+                self.board[10][j] = 5
+
+            self.board.append(-1)
+            self.board.append(1)
+            self.board[5][5] = 1
+        elif board_id == 1:
+            pass
         print(self.board)
         self.left = 135
         self.top = 30
@@ -22,7 +32,7 @@ class Board:
         x = self.cell_size * self.width
         y = self.cell_size * self.height
         pygame.draw.rect(screen, (255, 255, 255), (self.left - 1, self.top - 1, x + 2, y + 2), 1)
-        for i in range(len(self.board)):
+        for i in range(11):
             for j in range(len(self.board[i])):
                 if self.board[i][j] == 2:
                     pygame.draw.rect(screen, (255, 255, 255), (self.left + self.cell_size * j,
@@ -42,6 +52,17 @@ class Board:
     def get_click(self, mouse_pos):
         cell = self.get_cell(mouse_pos)
         print(cell)
+        if self.board[cell[1]][cell[0]] == 5:
+            if cell[1] == 10:
+                pass
+            elif cell[1] == 0:
+                pass
+            elif cell[0] == 0:
+                pass
+            elif cell[0] == 10:
+                pass
+        elif self.board[cell[1]][cell[0]] == 3:
+            pass
 
     def get_cell(self, mouse_pos):
         cell_x = (mouse_pos[0] - self.left) // self.cell_size
@@ -57,7 +78,7 @@ class Board:
     def cell_vision(self, mouse_pos):
         cell = self.get_cell(mouse_pos)
         if cell:
-            if self.board[cell[1]][cell[0]] == 0:
+            if self.board[cell[1]][cell[0]] in [0, 4, 5]:
                 x = cell[0] * self.cell_size + self.left
                 y = cell[1] * self.cell_size + self.top
                 pygame.draw.rect(screen, (255, 255, 0), (x, y, self.cell_size, self.cell_size), 1)
