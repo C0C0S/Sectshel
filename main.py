@@ -1,14 +1,31 @@
 import pygame
 import sqlite3
+import os
 
 
 class Board:
     # создание поля
-    def __init__(self, width, height, id, board_id):
+    def __init__(self, width, height, login, board_id, diary):
         self.width = width
         self.height = height
+        self.login = login
+        if diary == 'None':
+            diary = ''
+        if not diary:
+            diary = ''
+        self.diary = diary
+        self.con = sqlite3.connect("data_db.sqlite")
+        self.cur = self.con.cursor()
         self.board = [[0] * width for _ in range(height)]
-        if board_id == 0:
+        self.board_id = board_id
+        self.left = 135
+        self.top = 30
+        self.cell_size = 30
+        self.generate_board()
+
+    def generate_board(self):
+        if self.board_id == 0:
+            print('ok')
             for i in range(2):
                 for j in range(len(self.board)):
                     self.board[i][j] = 3
@@ -21,14 +38,11 @@ class Board:
             self.board.append(-1)
             self.board.append(1)
             self.board[5][5] = 1
-        elif board_id == 1:
-            pass
+        elif self.board_id == -1:
+            self.board_id = 0
         print(self.board)
-        self.left = 135
-        self.top = 30
-        self.cell_size = 30
 
-    def render(self, screen, mouse_pos):
+    def render_board(self, screen, mouse_pos):
         x = self.cell_size * self.width
         y = self.cell_size * self.height
         pygame.draw.rect(screen, (255, 255, 255), (self.left - 1, self.top - 1, x + 2, y + 2), 1)
@@ -51,10 +65,25 @@ class Board:
 
     def get_click(self, mouse_pos):
         cell = self.get_cell(mouse_pos)
-        print(cell)
+        print(cell, self.board[cell[1]][cell[0]])
         if self.board[cell[1]][cell[0]] == 5:
             if cell[1] == 10:
-                pass
+                if self.board_id == 0:
+                    end_1 = self.cur.execute(f"""SELECT end1 FROM data WHERE login='{self.login}'""").fetchall()[0][0]
+                    # добавить анимацию как чел идёт
+                    if end_1 == "FALSE":
+                        self.board_id = -1
+                        self.diary += (
+                            "В прошлый свой визит, я не осмелился войти в этот пугающий город. "
+                            "Уходя, недалеко от ворот я споткнулся о скелет и уведел у него в руках какую-то книгу. "
+                            "Это было учение некой секты. "
+                            "Единственное что удалось из него узнать, то что секта покланялась какому-то "
+                            "высшему существу и описания в учении напоминали дьявола. Это одновременно интригует "
+                            "и пугает, возможно вы ещё вернётесь сюда в поисках истины, но не сейчас. /")
+                        self.cur.execute(f"""UPDATE data SET diary='{self.diary}', end1='TRUE' 
+                        WHERE login='{self.login}'""")
+                        self.con.commit()
+                        self.generate_board()
             elif cell[1] == 0:
                 pass
             elif cell[0] == 0:
@@ -151,9 +180,20 @@ class Enemy:
 pygame.init()
 size = widgh, height = 600, 500
 screen = pygame.display.set_mode(size)
-pygame.display.set_caption('Under World')
+pygame.display.set_caption('Sectshel')
+try:
+    os.mkdir("upload")
 
-board = Board(11, 11, 0, 0)
+except Exception:
+    pass
+
+con = sqlite3.connect("data_db.sqlite")
+cur = con.cursor()
+data = cur.execute("SELECT login, password, board_id, diary FROM data").fetchall()
+print(data)
+con.close()
+board = Board(11, 11, data[0][0], data[0][2], data[0][3])
+
 running = True
 pos = None
 while running:
@@ -166,5 +206,5 @@ while running:
             screen.fill((0, 0, 0))
             board.cell_vision(event.pos)
             pos = event.pos
-    board.render(screen, pos)
+    board.render_board(screen, pos)
     pygame.display.flip()
