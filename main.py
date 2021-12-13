@@ -9,6 +9,7 @@ class Board:
         self.width = width
         self.height = height
         self.login = login
+        self.cords = []
         if diary == 'None':
             diary = ''
         if not diary:
@@ -24,6 +25,7 @@ class Board:
         self.generate_board()
 
     def generate_board(self):
+        self.board = [[0] * self.width for _ in range(self.height)]
         if self.board_id == 0:
             print('ok')
             for i in range(2):
@@ -38,8 +40,15 @@ class Board:
             self.board.append(-1)
             self.board.append(1)
             self.board[5][5] = 1
+
         elif self.board_id == -1:
             self.board_id = 0
+            self.generate_board()
+
+        elif self.board_id == 1:
+            for i in range(0, 11):
+                for j in range(4, 7):
+                    self.board[i][j] = 4
         print(self.board)
 
     def render_board(self, screen, mouse_pos):
@@ -57,9 +66,13 @@ class Board:
                                                                self.top + self.cell_size * i, self.cell_size,
                                                                self.cell_size), 0)
                 elif self.board[i][j] == 3:
-                    pygame.draw.rect(screen, (255, 255, 255), (self.left + self.cell_size * j,
-                                                               self.top + self.cell_size * i, self.cell_size,
-                                                               self.cell_size), 0)
+                    pygame.draw.rect(screen, (0, 255, 255), (self.left + self.cell_size * j,
+                                                             self.top + self.cell_size * i, self.cell_size,
+                                                             self.cell_size), 0)
+                elif self.board[i][j] == 4 or self.board[i][j] == 5:
+                    pygame.draw.rect(screen, (255, 0, 255), (self.left + self.cell_size * j,
+                                                             self.top + self.cell_size * i, self.cell_size,
+                                                             self.cell_size), 0)
         if mouse_pos:
             self.cell_vision(mouse_pos)
 
@@ -67,6 +80,7 @@ class Board:
         cell = self.get_cell(mouse_pos)
         print(cell, self.board[cell[1]][cell[0]])
         if self.board[cell[1]][cell[0]] == 5:
+            print(self.cords)
             if cell[1] == 10:
                 if self.board_id == 0:
                     end_1 = self.cur.execute(f"""SELECT end1 FROM data WHERE login='{self.login}'""").fetchall()[0][0]
@@ -90,8 +104,16 @@ class Board:
                 pass
             elif cell[0] == 10:
                 pass
+
         elif self.board[cell[1]][cell[0]] == 3:
-            pass
+            if self.cords[1] % self.cell_size == 0 or self.cords[3] % self.cell_size == 1:
+                if self.board_id == 0:
+                    print('0')
+                    self.board_id = 1
+                    self.cur.execute(f"""UPDATE data SET board_id='{self.board_id}'
+                                            WHERE login='{self.login}'""")
+                    self.con.commit()
+                    self.generate_board()
 
     def get_cell(self, mouse_pos):
         cell_x = (mouse_pos[0] - self.left) // self.cell_size
@@ -110,6 +132,7 @@ class Board:
             if self.board[cell[1]][cell[0]] in [0, 4, 5]:
                 x = cell[0] * self.cell_size + self.left
                 y = cell[1] * self.cell_size + self.top
+                self.cords = [x, y, self.cell_size, self.cell_size]
                 pygame.draw.rect(screen, (255, 255, 0), (x, y, self.cell_size, self.cell_size), 1)
 
             elif self.board[cell[1]][cell[0]] == 2:
@@ -146,6 +169,7 @@ class Board:
                 y_min = min(mas_i) * self.cell_size + self.top
                 x = (max(mas_j) - min(mas_j) + 1) * self.cell_size
                 y = (max(mas_i) - min(mas_i) + 1) * self.cell_size
+                self.cords = [x_min, y_min, x, y]
                 pygame.draw.rect(screen, (255, 255, 0), (x_min, y_min, x, y), 1)
 
             elif self.board[cell[1]][cell[0]] == 3:
@@ -161,11 +185,13 @@ class Board:
                     if self.board[cell[1] + 1][cell[0]] == 3:
                         t += 1
                 y = t * self.cell_size
+                self.cords = [x_min, y_min, x, y]
                 pygame.draw.rect(screen, (255, 255, 0), (x_min, y_min, x, y), 1)
 
             elif self.board[cell[1]][cell[0]] == 1:
                 x = cell[0] * self.cell_size + self.left
                 y = cell[1] * self.cell_size + self.top
+                self.cords = [x, y, self.cell_size, self.cell_size]
                 pygame.draw.rect(screen, (255, 255, 0), (x, y, self.cell_size, self.cell_size), 1)
 
 
@@ -193,6 +219,8 @@ data = cur.execute("SELECT login, password, board_id, diary FROM data").fetchall
 print(data)
 con.close()
 board = Board(11, 11, data[0][0], data[0][2], data[0][3])
+fps = 30
+clock = pygame.time.Clock()
 
 running = True
 pos = None
@@ -201,6 +229,7 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.MOUSEBUTTONDOWN:
+            screen.fill((0, 0, 0))
             board.get_click(event.pos)
         if event.type == pygame.MOUSEMOTION:
             screen.fill((0, 0, 0))
@@ -208,3 +237,4 @@ while running:
             pos = event.pos
     board.render_board(screen, pos)
     pygame.display.flip()
+    clock.tick(fps)
