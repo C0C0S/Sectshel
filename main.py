@@ -5,11 +5,13 @@ import os
 
 class Board:
     # создание поля
-    def __init__(self, width, height, login, board_id, diary):
+    def __init__(self, width, height, login, board_id, diary, hero_pos):
         self.width = width
         self.height = height
         self.login = login
         self.cords = []
+        self.hero_pos = hero_pos.split()
+        print(self.hero_pos)
         if diary == 'None':
             diary = ''
         if not diary:
@@ -40,6 +42,7 @@ class Board:
             self.board.append(-1)
             self.board.append(1)
             self.board[5][5] = 1
+            self.hero_pos[0], self.hero_pos[1] = '5', '5'
 
         elif self.board_id == -1:
             self.board_id = 0
@@ -49,6 +52,7 @@ class Board:
             for i in range(0, 11):
                 for j in range(4, 7):
                     self.board[i][j] = 4
+            self.board[int(self.hero_pos[0])][int(self.hero_pos[1])] = 1
         print(self.board)
 
     def render_board(self, screen, mouse_pos):
@@ -76,44 +80,86 @@ class Board:
         if mouse_pos:
             self.cell_vision(mouse_pos)
 
-    def get_click(self, mouse_pos):
+    def on_click(self, mouse_pos):
         cell = self.get_cell(mouse_pos)
-        print(cell, self.board[cell[1]][cell[0]])
-        if self.board[cell[1]][cell[0]] == 5:
-            print(self.cords)
-            if cell[1] == 10:
-                if self.board_id == 0:
-                    end_1 = self.cur.execute(f"""SELECT end1 FROM data WHERE login='{self.login}'""").fetchall()[0][0]
-                    # добавить анимацию как чел идёт
-                    if end_1 == "FALSE":
-                        self.board_id = -1
-                        self.diary += (
-                            "В прошлый свой визит, я не осмелился войти в этот пугающий город. "
-                            "Уходя, недалеко от ворот я споткнулся о скелет и уведел у него в руках какую-то книгу. "
-                            "Это было учение некой секты. "
-                            "Единственное что удалось из него узнать, то что секта покланялась какому-то "
-                            "высшему существу и описания в учении напоминали дьявола. Это одновременно интригует "
-                            "и пугает, возможно вы ещё вернётесь сюда в поисках истины, но не сейчас. /")
-                        self.cur.execute(f"""UPDATE data SET diary='{self.diary}', end1='TRUE' 
-                        WHERE login='{self.login}'""")
+        if cell:
+            print(cell, self.board[cell[1]][cell[0]])
+            if self.board[cell[1]][cell[0]] == 5:
+                print(self.cords)
+                if cell[1] == 10:
+                    if self.board_id == 0:
+                        end_1 = self.cur.execute(f"""SELECT end1 FROM data WHERE login='{self.login}'""").fetchall()[0][0]
+                        # добавить анимацию как чел идёт
+                        if end_1 == "FALSE":
+                            self.board_id = -1
+                            self.diary += (
+                                "В прошлый свой визит, я не осмелился войти в этот пугающий город. "
+                                "Уходя, недалеко от ворот я споткнулся о скелет и уведел у него в руках какую-то книгу. "
+                                "Это было учение некой секты. "
+                                "Единственное что удалось из него узнать, то что секта покланялась какому-то "
+                                "высшему существу и описания в учении напоминали дьявола. Это одновременно интригует "
+                                "и пугает, возможно вы ещё вернётесь сюда в поисках истины, но не сейчас. /")
+                            self.cur.execute(f"""UPDATE data SET diary='{self.diary}', end1='TRUE' 
+                            WHERE login='{self.login}'""")
+                            self.con.commit()
+                            self.generate_board()
+                elif cell[1] == 0:
+                    pass
+                elif cell[0] == 0:
+                    pass
+                elif cell[0] == 10:
+                    pass
+
+            elif self.board[cell[1]][cell[0]] == 3:
+                if self.cords[1] % self.cell_size == 0 or self.cords[3] % self.cell_size == 1:
+                    if self.board_id == 0:
+                        print('0')
+                        self.board_id = 1
+                        self.cur.execute(f"""UPDATE data SET board_id='{self.board_id}'
+                                                WHERE login='{self.login}'""")
                         self.con.commit()
                         self.generate_board()
-            elif cell[1] == 0:
-                pass
-            elif cell[0] == 0:
-                pass
-            elif cell[0] == 10:
-                pass
 
-        elif self.board[cell[1]][cell[0]] == 3:
-            if self.cords[1] % self.cell_size == 0 or self.cords[3] % self.cell_size == 1:
-                if self.board_id == 0:
-                    print('0')
-                    self.board_id = 1
-                    self.cur.execute(f"""UPDATE data SET board_id='{self.board_id}'
-                                            WHERE login='{self.login}'""")
-                    self.con.commit()
-                    self.generate_board()
+            elif self.board[cell[1]][cell[0]] == 4:
+                a, b = int(self.hero_pos[0]), int(self.hero_pos[1])
+                if a < cell[1]:
+                    for i in range(a + 1, cell[1] + 1):
+                        if b < cell[0]:
+                            for j in range(b + 1, cell[0] + 1):
+                                self.hero_pos[1] = str(j)
+                                self.generate_board()
+                        elif b > cell[0]:
+                            for j in range(b - 1, cell[0] - 1, -1):
+                                self.hero_pos[1] = str(j)
+                                self.generate_board()
+                        self.hero_pos[0] = str(i)
+                        self.generate_board()
+                elif a > cell[1]:
+                    for i in range(a - 1, cell[1] - 1, -1):
+                        print(i)
+                        if b < cell[0]:
+                            for j in range(b + 1, cell[0] + 1):
+                                self.hero_pos[1] = str(j)
+                                self.generate_board()
+                        elif b > cell[0]:
+                            for j in range(b - 1, cell[0] - 1, -1):
+                                self.hero_pos[1] = str(j)
+                                self.generate_board()
+                        self.hero_pos[0] = str(i)
+                        self.generate_board()
+                else:
+                    if b < cell[0]:
+                        for j in range(b + 1, cell[0] + 1):
+                            self.hero_pos[1] = str(j)
+                            self.generate_board()
+                    elif b > cell[0]:
+                        for j in range(b - 1, cell[0] - 1, -1):
+                            self.hero_pos[1] = str(j)
+                            self.generate_board()
+                print(self.hero_pos[0] + ' ' + self.hero_pos[1])
+                self.cur.execute(f"""UPDATE data SET hero_pos='{self.hero_pos[0] + ' ' + self.hero_pos[1]}'
+                                                            WHERE login='{self.login}'""")
+                self.con.commit()
 
     def get_cell(self, mouse_pos):
         cell_x = (mouse_pos[0] - self.left) // self.cell_size
@@ -122,9 +168,6 @@ class Board:
         if 0 <= cell_x < self.width and 0 <= cell_y < self.height:
             return cell_x, cell_y
         return None
-
-    def on_click(self, cell):
-        pass
 
     def cell_vision(self, mouse_pos):
         cell = self.get_cell(mouse_pos)
@@ -215,10 +258,10 @@ except Exception:
 
 con = sqlite3.connect("data_db.sqlite")
 cur = con.cursor()
-data = cur.execute("SELECT login, password, board_id, diary FROM data").fetchall()
+data = cur.execute("SELECT login, password, board_id, diary, hero_pos FROM data").fetchall()
 print(data)
 con.close()
-board = Board(11, 11, data[0][0], data[0][2], data[0][3])
+board = Board(11, 11, data[0][0], data[0][2], data[0][3], data[0][4])
 fps = 30
 clock = pygame.time.Clock()
 
@@ -230,7 +273,7 @@ while running:
             running = False
         if event.type == pygame.MOUSEBUTTONDOWN:
             screen.fill((0, 0, 0))
-            board.get_click(event.pos)
+            board.on_click(event.pos)
         if event.type == pygame.MOUSEMOTION:
             screen.fill((0, 0, 0))
             board.cell_vision(event.pos)
