@@ -1,6 +1,7 @@
 import pygame
 import sqlite3
 import os
+import sys
 
 
 class Board:
@@ -88,7 +89,8 @@ class Board:
                 print(self.cords)
                 if cell[1] == 10:
                     if self.board_id == 0:
-                        end_1 = self.cur.execute(f"""SELECT end1 FROM data WHERE login='{self.login}'""").fetchall()[0][0]
+                        end_1 = self.cur.execute(f"""SELECT end1 FROM data WHERE login='{self.login}'""").fetchall()[0][
+                            0]
                         # добавить анимацию как чел идёт
                         if end_1 == "FALSE":
                             self.board_id = -1
@@ -237,6 +239,22 @@ class Board:
                 self.cords = [x, y, self.cell_size, self.cell_size]
                 pygame.draw.rect(screen, (255, 255, 0), (x, y, self.cell_size, self.cell_size), 1)
 
+    def load_image(self, name, colorkey=None):
+        fullname = os.path.join('img/mouse', name)
+        # если файл не существует, то выходим
+        if not os.path.isfile(fullname):
+            print(f"Файл с изображением '{fullname}' не найден")
+            sys.exit()
+        image = pygame.image.load(fullname)
+        if colorkey is not None:
+            image = image.convert()
+            if colorkey == -1:
+                colorkey = image.get_at((0, 0))
+            image.set_colorkey(colorkey)
+        else:
+            image = image.convert_alpha()
+        return image
+
 
 class Hero:
     pass
@@ -246,15 +264,27 @@ class Enemy:
     pass
 
 
+def load_image(name, colorkey=None):
+    fullname = os.path.join('img/mouse', name)
+    # если файл не существует, то выходим
+    if not os.path.isfile(fullname):
+        print(f"Файл с изображением '{fullname}' не найден")
+        sys.exit()
+    image = pygame.image.load(fullname)
+    if colorkey is not None:
+        image = image.convert()
+        if colorkey == -1:
+            colorkey = image.get_at((0, 0))
+        image.set_colorkey(colorkey)
+    else:
+        image = image.convert_alpha()
+    return image
+
+
 pygame.init()
 size = widgh, height = 600, 500
 screen = pygame.display.set_mode(size)
 pygame.display.set_caption('Sectshel')
-try:
-    os.mkdir("upload")
-
-except Exception:
-    pass
 
 con = sqlite3.connect("data_db.sqlite")
 cur = con.cursor()
@@ -265,6 +295,14 @@ board = Board(11, 11, data[0][0], data[0][2], data[0][3], data[0][4])
 fps = 30
 clock = pygame.time.Clock()
 
+image = load_image('cur.png')
+arrow_image = pygame.transform.scale(image, (30, 30))
+all_sprites = pygame.sprite.Group()
+
+arrow = pygame.sprite.Sprite(all_sprites)
+arrow.image = arrow_image
+arrow.rect = arrow.image.get_rect()
+
 running = True
 pos = None
 while running:
@@ -274,10 +312,17 @@ while running:
         if event.type == pygame.MOUSEBUTTONDOWN:
             screen.fill((0, 0, 0))
             board.on_click(event.pos)
-        if event.type == pygame.MOUSEMOTION:
+        if event.type == pygame.MOUSEMOTION and pygame.mouse.get_focused():
             screen.fill((0, 0, 0))
             board.cell_vision(event.pos)
             pos = event.pos
+            arrow.rect.x = event.pos[0]
+            arrow.rect.y = event.pos[1]
+    screen.fill(pygame.Color('Black'))
     board.render_board(screen, pos)
+    if pygame.mouse.get_focused():
+        pygame.mouse.set_visible(False)
+        all_sprites.draw(screen)
+
     pygame.display.flip()
     clock.tick(fps)
