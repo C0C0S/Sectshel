@@ -292,11 +292,11 @@ data = cur.execute("SELECT login, password, board_id, diary, hero_pos FROM data"
 print(data)
 con.close()
 board = Board(11, 11, data[0][0], data[0][2], data[0][3], data[0][4])
-fps = 30
+fps = 45
 clock = pygame.time.Clock()
 
 image = load_image('cur.png')
-arrow_image = pygame.transform.scale(image, (30, 30))
+arrow_image = pygame.transform.scale(image, (40, 30))
 all_sprites = pygame.sprite.Group()
 
 arrow = pygame.sprite.Sprite(all_sprites)
