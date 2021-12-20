@@ -2,16 +2,41 @@ import pygame
 import sqlite3
 import os
 import sys
+import time
+
+pygame.init()
+size = widgh, height = 600, 500
+screen = pygame.display.set_mode(size)
+pygame.display.set_caption('Sectshel')
+
+
+def load_image(name, colorkey=None):
+    fullname = os.path.join('img', name)
+    # если файл не существует, то выходим
+    if not os.path.isfile(fullname):
+        print(f"Файл с изображением '{fullname}' не найден")
+        sys.exit()
+    image = pygame.image.load(fullname)
+    if colorkey is not None:
+        image = image.convert()
+        if colorkey == -1:
+            colorkey = image.get_at((0, 0))
+        image.set_colorkey(colorkey)
+    else:
+        image = image.convert_alpha()
+    return image
 
 
 class Board:
     # создание поля
-    def __init__(self, width, height, login, board_id, diary, hero_pos):
+    def __init__(self, width, height, login, board_id, diary, hero_pos, sp_group):
         self.width = width
         self.height = height
         self.login = login
         self.cords = []
+
         self.hero_pos = hero_pos.split()
+        self.hero = Hero(sp_group, int(self.hero_pos[1]), int(self.hero_pos[0]))
         print(self.hero_pos)
         if diary == 'None':
             diary = ''
@@ -44,6 +69,7 @@ class Board:
             self.board.append(1)
             self.board[5][5] = 1
             self.hero_pos[0], self.hero_pos[1] = '5', '5'
+            self.hero.update(self.hero_pos)
 
         elif self.board_id == -1:
             self.board_id = 0
@@ -54,6 +80,7 @@ class Board:
                 for j in range(4, 7):
                     self.board[i][j] = 4
             self.board[int(self.hero_pos[0])][int(self.hero_pos[1])] = 1
+            self.hero.update(self.hero_pos)
         print(self.board)
 
     def render_board(self, screen, mouse_pos):
@@ -66,15 +93,12 @@ class Board:
                     pygame.draw.rect(screen, (255, 255, 255), (self.left + self.cell_size * j,
                                                                self.top + self.cell_size * i, self.cell_size,
                                                                self.cell_size), 0)
-                elif self.board[i][j] == 1:
-                    pygame.draw.rect(screen, (255, 255, 255), (self.left + self.cell_size * j,
-                                                               self.top + self.cell_size * i, self.cell_size,
-                                                               self.cell_size), 0)
+
                 elif self.board[i][j] == 3:
                     pygame.draw.rect(screen, (0, 255, 255), (self.left + self.cell_size * j,
                                                              self.top + self.cell_size * i, self.cell_size,
                                                              self.cell_size), 0)
-                elif self.board[i][j] == 4 or self.board[i][j] == 5:
+                elif self.board[i][j] in [4, 5, 1]:
                     pygame.draw.rect(screen, (255, 0, 255), (self.left + self.cell_size * j,
                                                              self.top + self.cell_size * i, self.cell_size,
                                                              self.cell_size), 0)
@@ -104,7 +128,7 @@ class Board:
                             self.cur.execute(f"""UPDATE data SET diary='{self.diary}', end1='TRUE' 
                             WHERE login='{self.login}'""")
                             self.con.commit()
-                            self.generate_board()
+
                 elif cell[1] == 0:
                     pass
                 elif cell[0] == 0:
@@ -120,7 +144,6 @@ class Board:
                         self.cur.execute(f"""UPDATE data SET board_id='{self.board_id}'
                                                 WHERE login='{self.login}'""")
                         self.con.commit()
-                        self.generate_board()
 
             elif self.board[cell[1]][cell[0]] == 4:
                 a, b = int(self.hero_pos[0]), int(self.hero_pos[1])
@@ -129,39 +152,45 @@ class Board:
                         if b < cell[0]:
                             for j in range(b + 1, cell[0] + 1):
                                 self.hero_pos[1] = str(j)
-                                self.generate_board()
+                                self.hero.update(self.hero_pos)
                         elif b > cell[0]:
                             for j in range(b - 1, cell[0] - 1, -1):
                                 self.hero_pos[1] = str(j)
-                                self.generate_board()
+                                self.hero.update(self.hero_pos)
                         self.hero_pos[0] = str(i)
-                        self.generate_board()
+                        self.hero.update(self.hero_pos)
                 elif a > cell[1]:
                     for i in range(a - 1, cell[1] - 1, -1):
                         print(i)
                         if b < cell[0]:
                             for j in range(b + 1, cell[0] + 1):
                                 self.hero_pos[1] = str(j)
-                                self.generate_board()
+                                self.hero.update(self.hero_pos)
                         elif b > cell[0]:
                             for j in range(b - 1, cell[0] - 1, -1):
                                 self.hero_pos[1] = str(j)
-                                self.generate_board()
+                                self.hero.update(self.hero_pos)
+
                         self.hero_pos[0] = str(i)
-                        self.generate_board()
+                        self.hero.update(self.hero_pos)
+
                 else:
                     if b < cell[0]:
                         for j in range(b + 1, cell[0] + 1):
                             self.hero_pos[1] = str(j)
-                            self.generate_board()
+                            self.hero.update(self.hero_pos)
+
                     elif b > cell[0]:
                         for j in range(b - 1, cell[0] - 1, -1):
                             self.hero_pos[1] = str(j)
-                            self.generate_board()
+                            self.hero.update(self.hero_pos)
+
                 print(self.hero_pos[0] + ' ' + self.hero_pos[1])
                 self.cur.execute(f"""UPDATE data SET hero_pos='{self.hero_pos[0] + ' ' + self.hero_pos[1]}'
                                                             WHERE login='{self.login}'""")
                 self.con.commit()
+                self.generate_board()
+                self.hero.update(self.hero_pos)
 
     def get_cell(self, mouse_pos):
         cell_x = (mouse_pos[0] - self.left) // self.cell_size
@@ -239,79 +268,57 @@ class Board:
                 self.cords = [x, y, self.cell_size, self.cell_size]
                 pygame.draw.rect(screen, (255, 255, 0), (x, y, self.cell_size, self.cell_size), 1)
 
-    def load_image(self, name, colorkey=None):
-        fullname = os.path.join('img/mouse', name)
-        # если файл не существует, то выходим
-        if not os.path.isfile(fullname):
-            print(f"Файл с изображением '{fullname}' не найден")
-            sys.exit()
-        image = pygame.image.load(fullname)
-        if colorkey is not None:
-            image = image.convert()
-            if colorkey == -1:
-                colorkey = image.get_at((0, 0))
-            image.set_colorkey(colorkey)
-        else:
-            image = image.convert_alpha()
-        return image
 
+class Hero(pygame.sprite.Sprite):
+    image = load_image('hero/hero_stay_0.png')
 
-class Hero:
-    pass
+    def __init__(self, group, x, y):
+        super().__init__(group)
+        self.image = Hero.image
+        self.rect = self.image.get_rect()
+        self.rect.x = x * 30 + 135
+        self.rect.y = y * 30 + 30
+        print(self.image)
+
+    def update(self, pos):
+        self.rect.x = int(pos[1]) * 30 + 135
+        self.rect.y = int(pos[0]) * 30 + 30
+
 
 
 class Enemy:
     pass
 
 
-def load_image(name, colorkey=None):
-    fullname = os.path.join('img/mouse', name)
-    # если файл не существует, то выходим
-    if not os.path.isfile(fullname):
-        print(f"Файл с изображением '{fullname}' не найден")
-        sys.exit()
-    image = pygame.image.load(fullname)
-    if colorkey is not None:
-        image = image.convert()
-        if colorkey == -1:
-            colorkey = image.get_at((0, 0))
-        image.set_colorkey(colorkey)
-    else:
-        image = image.convert_alpha()
-    return image
-
-
-pygame.init()
-size = widgh, height = 600, 500
-screen = pygame.display.set_mode(size)
-pygame.display.set_caption('Sectshel')
-
 con = sqlite3.connect("data_db.sqlite")
 cur = con.cursor()
 data = cur.execute("SELECT login, password, board_id, diary, hero_pos FROM data").fetchall()
 print(data)
 con.close()
-board = Board(11, 11, data[0][0], data[0][2], data[0][3], data[0][4])
+all_sprites = pygame.sprite.Group()
+board = Board(11, 11, data[0][0], data[0][2], data[0][3], data[0][4], all_sprites)
 fps = 45
 clock = pygame.time.Clock()
 
-image = load_image('cur.png')
+image = load_image('mouse/cur.png')
 arrow_image = pygame.transform.scale(image, (40, 30))
-all_sprites = pygame.sprite.Group()
+arrow_sprites = pygame.sprite.Group()
 
-arrow = pygame.sprite.Sprite(all_sprites)
+arrow = pygame.sprite.Sprite(arrow_sprites)
 arrow.image = arrow_image
 arrow.rect = arrow.image.get_rect()
 
 running = True
 pos = None
 while running:
+    all_sprites.draw(screen)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.MOUSEBUTTONDOWN:
             screen.fill((0, 0, 0))
             board.on_click(event.pos)
+            print(event.pos)
         if event.type == pygame.MOUSEMOTION and pygame.mouse.get_focused():
             screen.fill((0, 0, 0))
             board.cell_vision(event.pos)
@@ -320,9 +327,10 @@ while running:
             arrow.rect.y = event.pos[1]
     screen.fill(pygame.Color('Black'))
     board.render_board(screen, pos)
+    all_sprites.draw(screen)
     if pygame.mouse.get_focused():
         pygame.mouse.set_visible(False)
-        all_sprites.draw(screen)
+        arrow_sprites.draw(screen)
 
     pygame.display.flip()
     clock.tick(fps)
