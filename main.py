@@ -301,7 +301,7 @@ fps = 45
 clock = pygame.time.Clock()
 
 image = load_image('mouse/cur.png')
-arrow_image = pygame.transform.scale(image, (40, 30))
+arrow_image = pygame.transform.scale(image, (30, 25))
 arrow_sprites = pygame.sprite.Group()
 
 arrow = pygame.sprite.Sprite(arrow_sprites)
