@@ -3,6 +3,7 @@ import sqlite3
 import os
 import sys
 import time
+import random
 
 pygame.init()
 size = widgh, height = 600, 500
@@ -29,14 +30,15 @@ def load_image(name, colorkey=None):
 
 class Board:
     # создание поля
-    def __init__(self, width, height, login, board_id, diary, hero_pos, sp_group):
+    def __init__(self, width, height, login, board_id, diary, hero_pos, hero_group, road_group):
+        self.flag = 0
         self.width = width
         self.height = height
         self.login = login
         self.cords = []
-
+        self.road_gr = road_group
         self.hero_pos = hero_pos.split()
-        self.hero = Hero(sp_group, int(self.hero_pos[1]), int(self.hero_pos[0]))
+        self.hero = Hero(hero_group, int(self.hero_pos[1]), int(self.hero_pos[0]))
         print(self.hero_pos)
         if diary == 'None':
             diary = ''
@@ -53,6 +55,9 @@ class Board:
         self.generate_board()
 
     def generate_board(self):
+        # 1 - герой; 2 - кликабельный дом; 3 - входные ворота; 4 - дорога; 5 - переход на дороге;
+        # 21 - разрушенный дом; 22 - мусор; 23 - разрушенный забор
+        self.flag = 0
         self.board = [[0] * self.width for _ in range(self.height)]
         if self.board_id == 0:
             print('ok')
@@ -81,6 +86,24 @@ class Board:
                     self.board[i][j] = 4
             self.board[int(self.hero_pos[0])][int(self.hero_pos[1])] = 1
             self.hero.update(self.hero_pos)
+            for i in range(4, 7):
+                self.board[0][i] = 5
+            for i in range(1, 4):
+                for j in range(1, 4):
+                    self.board[i][j] = 2
+
+        elif self.board_id == 3:
+            for i in range(0, 11):
+                for j in range(4, 7):
+                    self.board[i][j] = 4
+            self.board[int(self.hero_pos[0])][int(self.hero_pos[1])] = 1
+            self.hero.update(self.hero_pos)
+            for i in range(4, 7):
+                self.board[0][i] = 5
+                self.board[10][i] = 5
+            for i in range(5, 8):
+                for j in range(8, 11):
+                    self.board[i][j] = 2
         print(self.board)
 
     def render_board(self, screen, mouse_pos):
@@ -88,7 +111,7 @@ class Board:
         y = self.cell_size * self.height
         pygame.draw.rect(screen, (255, 255, 255), (self.left - 1, self.top - 1, x + 2, y + 2), 1)
         for i in range(11):
-            for j in range(len(self.board[i])):
+            for j in range(11):
                 if self.board[i][j] == 2:
                     pygame.draw.rect(screen, (255, 255, 255), (self.left + self.cell_size * j,
                                                                self.top + self.cell_size * i, self.cell_size,
@@ -99,9 +122,10 @@ class Board:
                                                              self.top + self.cell_size * i, self.cell_size,
                                                              self.cell_size), 0)
                 elif self.board[i][j] in [4, 5, 1]:
-                    pygame.draw.rect(screen, (255, 0, 255), (self.left + self.cell_size * j,
-                                                             self.top + self.cell_size * i, self.cell_size,
-                                                             self.cell_size), 0)
+                    #налагивает как чертила, с каждым рендером, пофиксил, но нужно переключаться между досками
+                    if self.flag == 0:
+                        Road(self.road_gr, j, i)
+        self.flag = 1
         if mouse_pos:
             self.cell_vision(mouse_pos)
 
@@ -109,6 +133,10 @@ class Board:
         cell = self.get_cell(mouse_pos)
         if cell:
             print(cell, self.board[cell[1]][cell[0]])
+            for i in range(int(self.hero_pos[0]), cell[1]):
+                for j in range(int(self.hero_pos[1]), cell[0]):
+                    pass
+                    #столкновение с врагом
             if self.board[cell[1]][cell[0]] == 5:
                 print(self.cords)
                 if cell[1] == 10:
@@ -128,9 +156,24 @@ class Board:
                             self.cur.execute(f"""UPDATE data SET diary='{self.diary}', end1='TRUE' 
                             WHERE login='{self.login}'""")
                             self.con.commit()
+                    if self.board_id == 3:
+                        self.hero_pos[0], self.hero_pos[1] = '0', '5'
+                        self.hero.update(self.hero_pos)
+                        self.board_id = 1
+                        self.cur.execute(f"""UPDATE data SET board_id='{self.board_id}'
+                                                                        WHERE login='{self.login}'""")
+                        self.con.commit()
+                        self.generate_board()
 
                 elif cell[1] == 0:
-                    pass
+                    if self.board_id == 1:
+                        self.hero_pos[0], self.hero_pos[1] = '10', '5'
+                        self.hero.update(self.hero_pos)
+                        self.board_id = 3
+                        self.cur.execute(f"""UPDATE data SET board_id='{self.board_id}'
+                                                                        WHERE login='{self.login}'""")
+                        self.con.commit()
+                        self.generate_board()
                 elif cell[0] == 0:
                     pass
                 elif cell[0] == 10:
@@ -144,6 +187,7 @@ class Board:
                         self.cur.execute(f"""UPDATE data SET board_id='{self.board_id}'
                                                 WHERE login='{self.login}'""")
                         self.con.commit()
+                self.generate_board()
 
             elif self.board[cell[1]][cell[0]] == 4:
                 a, b = int(self.hero_pos[0]), int(self.hero_pos[1])
@@ -189,7 +233,6 @@ class Board:
                 self.cur.execute(f"""UPDATE data SET hero_pos='{self.hero_pos[0] + ' ' + self.hero_pos[1]}'
                                                             WHERE login='{self.login}'""")
                 self.con.commit()
-                self.generate_board()
                 self.hero.update(self.hero_pos)
 
     def get_cell(self, mouse_pos):
@@ -285,6 +328,17 @@ class Hero(pygame.sprite.Sprite):
         self.rect.y = int(pos[0]) * 30 + 30
 
 
+class Road(pygame.sprite.Sprite):
+    def __init__(self, group, x, y):
+        super().__init__(group)
+        self.image = load_image(random.choice(['road/floor_1.png', 'road/floor_3.png', 'road/floor_4.png', 'road/floor_5.png', 'road/floor_6.png', 'road/floor_7.png', 'road/floor_8.png']))
+        self.rect = self.image.get_rect()
+        self.rect.x = x * 30 + 135
+        self.rect.y = y * 30 + 30
+
+    def update(self):
+        pass
+
 
 class Enemy:
     pass
@@ -295,8 +349,9 @@ cur = con.cursor()
 data = cur.execute("SELECT login, password, board_id, diary, hero_pos FROM data").fetchall()
 print(data)
 con.close()
-all_sprites = pygame.sprite.Group()
-board = Board(11, 11, data[0][0], data[0][2], data[0][3], data[0][4], all_sprites)
+road_sprites = pygame.sprite.Group()
+hero_sprites = pygame.sprite.Group()
+board = Board(11, 11, data[0][0], data[0][2], data[0][3], data[0][4], hero_sprites, road_sprites)
 fps = 45
 clock = pygame.time.Clock()
 
@@ -310,12 +365,12 @@ arrow.rect = arrow.image.get_rect()
 
 running = True
 pos = None
+
 while running:
-    all_sprites.draw(screen)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        if event.type == pygame.MOUSEBUTTONDOWN:
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             screen.fill((0, 0, 0))
             board.on_click(event.pos)
             print(event.pos)
@@ -326,8 +381,9 @@ while running:
             arrow.rect.x = event.pos[0]
             arrow.rect.y = event.pos[1]
     screen.fill(pygame.Color('Black'))
+    road_sprites.draw(screen)
     board.render_board(screen, pos)
-    all_sprites.draw(screen)
+    hero_sprites.draw(screen)
     if pygame.mouse.get_focused():
         pygame.mouse.set_visible(False)
         arrow_sprites.draw(screen)
