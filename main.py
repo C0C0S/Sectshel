@@ -2,7 +2,6 @@ import pygame
 import sqlite3
 import os
 import sys
-import time
 import random
 
 pygame.init()
@@ -30,13 +29,16 @@ def load_image(name, colorkey=None):
 
 class Board:
     # создание поля
-    def __init__(self, width, height, login, board_id, diary, hero_pos, hero_group, road_group):
+    def __init__(self, width, height, login, board_id, diary, hero_pos, hero_group, road_group, enemy_group):
         self.flag = 0
         self.width = width
         self.height = height
         self.login = login
         self.cords = []
+
         self.road_gr = road_group
+        self.enemy_gr = enemy_group
+
         self.hero_pos = hero_pos.split()
         self.hero = Hero(hero_group, int(self.hero_pos[1]), int(self.hero_pos[0]))
         print(self.hero_pos)
@@ -55,9 +57,17 @@ class Board:
         self.generate_board()
 
     def generate_board(self):
-        # 1 - герой; 2 - кликабельный дом; 3 - входные ворота; 4 - дорога; 5 - переход на дороге;
+        # 1 - герой; 2 - кликабельный дом; 3 - входные ворота; 4 - дорога; 5 - переход на дороге; 6 - враг;
         # 21 - разрушенный дом; 22 - мусор; 23 - разрушенный забор
         self.flag = 0
+        print(self.road_gr)
+        for sprite in self.road_gr:
+            if isinstance(sprite, Road):
+                sprite.kill()
+        for sprite in self.enemy_gr:
+            if isinstance(sprite, Enemy):
+                sprite.kill()
+        self.enemy = None
         self.board = [[0] * self.width for _ in range(self.height)]
         if self.board_id == 0:
             print('ok')
@@ -74,7 +84,7 @@ class Board:
             self.board.append(1)
             self.board[5][5] = 1
             self.hero_pos[0], self.hero_pos[1] = '5', '5'
-            self.hero.update(self.hero_pos)
+            self.hero.update(self.hero_pos, self.enemy)
 
         elif self.board_id == -1:
             self.board_id = 0
@@ -85,19 +95,24 @@ class Board:
                 for j in range(4, 7):
                     self.board[i][j] = 4
             self.board[int(self.hero_pos[0])][int(self.hero_pos[1])] = 1
-            self.hero.update(self.hero_pos)
+            self.hero.update(self.hero_pos, self.enemy)
             for i in range(4, 7):
                 self.board[0][i] = 5
             for i in range(1, 4):
                 for j in range(1, 4):
                     self.board[i][j] = 2
+            # сделать проверку убит ли этот моб
+            self.board[1][5] = 6
+            self.enemy = [Enemy(self.enemy_gr, 5, 1, 'ожившие_доспехи.png'),
+                          Enemy(self.enemy_gr, 4, 1, 'enemy_vision.png'),
+                          Enemy(self.enemy_gr, 6, 1, 'enemy_vision.png')]
 
         elif self.board_id == 3:
             for i in range(0, 11):
                 for j in range(4, 7):
                     self.board[i][j] = 4
             self.board[int(self.hero_pos[0])][int(self.hero_pos[1])] = 1
-            self.hero.update(self.hero_pos)
+            self.hero.update(self.hero_pos, self.enemy)
             for i in range(4, 7):
                 self.board[0][i] = 5
                 self.board[10][i] = 5
@@ -121,8 +136,7 @@ class Board:
                     pygame.draw.rect(screen, (0, 255, 255), (self.left + self.cell_size * j,
                                                              self.top + self.cell_size * i, self.cell_size,
                                                              self.cell_size), 0)
-                elif self.board[i][j] in [4, 5, 1]:
-                    #налагивает как чертила, с каждым рендером, пофиксил, но нужно переключаться между досками
+                elif self.board[i][j] in [4, 5, 1, 6]:
                     if self.flag == 0:
                         Road(self.road_gr, j, i)
         self.flag = 1
@@ -136,50 +150,9 @@ class Board:
             for i in range(int(self.hero_pos[0]), cell[1]):
                 for j in range(int(self.hero_pos[1]), cell[0]):
                     pass
-                    #столкновение с врагом
-            if self.board[cell[1]][cell[0]] == 5:
-                print(self.cords)
-                if cell[1] == 10:
-                    if self.board_id == 0:
-                        end_1 = self.cur.execute(f"""SELECT end1 FROM data WHERE login='{self.login}'""").fetchall()[0][
-                            0]
-                        # добавить анимацию как чел идёт
-                        if end_1 == "FALSE":
-                            self.board_id = -1
-                            self.diary += (
-                                "В прошлый свой визит, я не осмелился войти в этот пугающий город. "
-                                "Уходя, недалеко от ворот я споткнулся о скелет и уведел у него в руках какую-то книгу. "
-                                "Это было учение некой секты. "
-                                "Единственное что удалось из него узнать, то что секта покланялась какому-то "
-                                "высшему существу и описания в учении напоминали дьявола. Это одновременно интригует "
-                                "и пугает, возможно вы ещё вернётесь сюда в поисках истины, но не сейчас. /")
-                            self.cur.execute(f"""UPDATE data SET diary='{self.diary}', end1='TRUE' 
-                            WHERE login='{self.login}'""")
-                            self.con.commit()
-                    if self.board_id == 3:
-                        self.hero_pos[0], self.hero_pos[1] = '0', '5'
-                        self.hero.update(self.hero_pos)
-                        self.board_id = 1
-                        self.cur.execute(f"""UPDATE data SET board_id='{self.board_id}'
-                                                                        WHERE login='{self.login}'""")
-                        self.con.commit()
-                        self.generate_board()
+                    # столкновение с врагом
 
-                elif cell[1] == 0:
-                    if self.board_id == 1:
-                        self.hero_pos[0], self.hero_pos[1] = '10', '5'
-                        self.hero.update(self.hero_pos)
-                        self.board_id = 3
-                        self.cur.execute(f"""UPDATE data SET board_id='{self.board_id}'
-                                                                        WHERE login='{self.login}'""")
-                        self.con.commit()
-                        self.generate_board()
-                elif cell[0] == 0:
-                    pass
-                elif cell[0] == 10:
-                    pass
-
-            elif self.board[cell[1]][cell[0]] == 3:
+            if self.board[cell[1]][cell[0]] == 3:
                 if self.cords[1] % self.cell_size == 0 or self.cords[3] % self.cell_size == 1:
                     if self.board_id == 0:
                         print('0')
@@ -189,51 +162,132 @@ class Board:
                         self.con.commit()
                 self.generate_board()
 
-            elif self.board[cell[1]][cell[0]] == 4:
+            elif self.board[cell[1]][cell[0]] in [4, 5, 6]:
+                # сделать анимацию
                 a, b = int(self.hero_pos[0]), int(self.hero_pos[1])
                 if a < cell[1]:
                     for i in range(a + 1, cell[1] + 1):
                         if b < cell[0]:
                             for j in range(b + 1, cell[0] + 1):
                                 self.hero_pos[1] = str(j)
-                                self.hero.update(self.hero_pos)
+                                if self.hero.update(self.hero_pos, self.enemy):
+                                    self.hero_pos = [str(a), str(b)]
+                                    self.hero.change(self.hero_pos)
+                                    return None
                         elif b > cell[0]:
                             for j in range(b - 1, cell[0] - 1, -1):
                                 self.hero_pos[1] = str(j)
-                                self.hero.update(self.hero_pos)
+                                if self.hero.update(self.hero_pos, self.enemy):
+                                    self.hero_pos = [str(a), str(b)]
+                                    self.hero.change(self.hero_pos)
+                                    return None
                         self.hero_pos[0] = str(i)
-                        self.hero.update(self.hero_pos)
+                        if self.hero.update(self.hero_pos, self.enemy):
+                            self.hero_pos = [str(a), str(b)]
+                            self.hero.change(self.hero_pos)
+                            return None
                 elif a > cell[1]:
                     for i in range(a - 1, cell[1] - 1, -1):
                         print(i)
                         if b < cell[0]:
                             for j in range(b + 1, cell[0] + 1):
                                 self.hero_pos[1] = str(j)
-                                self.hero.update(self.hero_pos)
+                                if self.hero.update(self.hero_pos, self.enemy):
+                                    self.hero_pos = [str(a), str(b)]
+                                    self.hero.change(self.hero_pos)
+                                    return None
                         elif b > cell[0]:
                             for j in range(b - 1, cell[0] - 1, -1):
                                 self.hero_pos[1] = str(j)
-                                self.hero.update(self.hero_pos)
+                                if self.hero.update(self.hero_pos, self.enemy):
+                                    self.hero_pos = [str(a), str(b)]
+                                    self.hero.change(self.hero_pos)
+                                    return None
 
                         self.hero_pos[0] = str(i)
-                        self.hero.update(self.hero_pos)
+                        if self.hero.update(self.hero_pos, self.enemy):
+                            self.hero_pos = [str(a), str(b)]
+                            self.hero.change(self.hero_pos)
+                            return None
 
                 else:
                     if b < cell[0]:
                         for j in range(b + 1, cell[0] + 1):
                             self.hero_pos[1] = str(j)
-                            self.hero.update(self.hero_pos)
+                            if self.hero.update(self.hero_pos, self.enemy):
+                                self.hero_pos = [str(a), str(b)]
+                                self.hero.change(self.hero_pos)
+                                return None
 
                     elif b > cell[0]:
                         for j in range(b - 1, cell[0] - 1, -1):
                             self.hero_pos[1] = str(j)
-                            self.hero.update(self.hero_pos)
+                            if self.hero.update(self.hero_pos, self.enemy):
+                                self.hero_pos = [str(a), str(b)]
+                                self.hero.change(self.hero_pos)
+                                return None
 
+                if self.board[cell[1]][cell[0]] == 5:
+                    print(self.cords)
+                    if cell[1] == 10:
+                        if self.board_id == 0:
+                            end_1 = \
+                                self.cur.execute(f"""SELECT end1 FROM data WHERE login='{self.login}'""").fetchall()[0][
+                                    0]
+                            # добавить анимацию как чел идёт
+                            if end_1 == "FALSE":
+                                self.board_id = -1
+                                self.diary += (
+                                    "В прошлый свой визит, я не осмелился войти в этот пугающий город. "
+                                    "Уходя, недалеко от ворот я споткнулся о скелет и уведел у него в руках какую-то книгу. "
+                                    "Это было учение некой секты. "
+                                    "Единственное что удалось из него узнать, то что секта покланялась какому-то "
+                                    "высшему существу и описания в учении напоминали дьявола. Это одновременно интригует "
+                                    "и пугает, возможно вы ещё вернётесь сюда в поисках истины, но не сейчас. /")
+                                self.cur.execute(f"""UPDATE data SET diary='{self.diary}', end1='TRUE' 
+                                WHERE login='{self.login}'""")
+                                self.con.commit()
+                        if self.board_id == 3:
+                            self.hero_pos[0], self.hero_pos[1] = '0', '5'
+                            if self.hero.update(self.hero_pos, self.enemy):
+                                self.hero_pos = [str(a), str(b)]
+                                self.hero.change(self.hero_pos)
+                                return None
+                            self.board_id = 1
+                            self.cur.execute(f"""UPDATE data SET board_id='{self.board_id}'
+                                                                            WHERE login='{self.login}'""")
+                            self.con.commit()
+                            self.generate_board()
+
+                    elif cell[1] == 0:
+                        if self.board_id == 1:
+                            self.hero_pos[0], self.hero_pos[1] = '10', '5'
+                            if self.hero.update(self.hero_pos, self.enemy):
+                                self.hero_pos = [str(a), str(b)]
+                                self.hero.change(self.hero_pos)
+                                return None
+                            self.board_id = 3
+                            self.cur.execute(f"""UPDATE data SET board_id='{self.board_id}'
+                                                                            WHERE login='{self.login}'""")
+                            self.con.commit()
+                            self.generate_board()
+                    elif cell[0] == 0:
+                        pass
+                    elif cell[0] == 10:
+                        pass
                 print(self.hero_pos[0] + ' ' + self.hero_pos[1])
                 self.cur.execute(f"""UPDATE data SET hero_pos='{self.hero_pos[0] + ' ' + self.hero_pos[1]}'
                                                             WHERE login='{self.login}'""")
                 self.con.commit()
-                self.hero.update(self.hero_pos)
+                self.board[int(self.hero_pos[0])][int(self.hero_pos[1])] = 1
+                if a in [0, 10]:
+                    self.board[a][b] = 5
+                else:
+                    self.board[a][b] = 4
+                if self.hero.update(self.hero_pos, self.enemy):
+                    self.hero_pos = [str(a), str(b)]
+                    self.hero.change(self.hero_pos)
+                    return None
 
     def get_cell(self, mouse_pos):
         cell_x = (mouse_pos[0] - self.left) // self.cell_size
@@ -305,11 +359,17 @@ class Board:
                 self.cords = [x_min, y_min, x, y]
                 pygame.draw.rect(screen, (255, 255, 0), (x_min, y_min, x, y), 1)
 
+            elif self.board[cell[1]][cell[0]] == 6:
+                x = cell[0] * self.cell_size + self.left
+                y = cell[1] * self.cell_size + self.top
+                self.cords = [x, y, self.cell_size, self.cell_size]
+                pygame.draw.rect(screen, (255, 0, 0), (x, y, self.cell_size, self.cell_size), 1)
+
             elif self.board[cell[1]][cell[0]] == 1:
                 x = cell[0] * self.cell_size + self.left
                 y = cell[1] * self.cell_size + self.top
                 self.cords = [x, y, self.cell_size, self.cell_size]
-                pygame.draw.rect(screen, (255, 255, 0), (x, y, self.cell_size, self.cell_size), 1)
+                pygame.draw.rect(screen, (0, 255, 0), (x, y, self.cell_size, self.cell_size), 1)
 
 
 class Hero(pygame.sprite.Sprite):
@@ -321,17 +381,59 @@ class Hero(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = x * 30 + 135
         self.rect.y = y * 30 + 30
-        print(self.image)
+        self.mask = pygame.mask.from_surface(self.image)
 
-    def update(self, pos):
+    def update(self, pos, enemy):
+        if enemy is not None:
+            for obj in enemy:
+                if pygame.sprite.collide_mask(self, obj):
+                    fight = Fight()
+                    run = True
+                    while run:
+                        for event in pygame.event.get():
+                            if event.type == pygame.QUIT:
+                                run = False
+                                return True
+                            if event.type == pygame.MOUSEBUTTONDOWN:
+                                print(event.button)
+                            if event.type == pygame.MOUSEMOTION and pygame.mouse.get_focused():
+                                screen.fill((0, 0, 0))
+                                board.cell_vision(event.pos)
+                                pos = event.pos
+                                arrow.rect.x = event.pos[0]
+                                arrow.rect.y = event.pos[1]
+                        screen.fill(pygame.Color('Black'))
+                        if pygame.mouse.get_focused():
+                            pygame.mouse.set_visible(False)
+                            arrow_sprites.draw(screen)
+                        '''
+                        if fight.flag == 1:
+                            for e in enemy:
+                                e.kill()
+                            #заносим данные в бд
+                            run = False
+                        '''
+                        pygame.display.flip()
+                        clock.tick(fps)
+            self.rect.x = int(pos[1]) * 30 + 135
+            self.rect.y = int(pos[0]) * 30 + 30
+            return False
+
+    def change(self, pos):
         self.rect.x = int(pos[1]) * 30 + 135
         self.rect.y = int(pos[0]) * 30 + 30
+
+
+class Fight:
+    pass
 
 
 class Road(pygame.sprite.Sprite):
     def __init__(self, group, x, y):
         super().__init__(group)
-        self.image = load_image(random.choice(['road/floor_1.png', 'road/floor_3.png', 'road/floor_4.png', 'road/floor_5.png', 'road/floor_6.png', 'road/floor_7.png', 'road/floor_8.png']))
+        self.image = load_image(random.choice(
+            ['road/floor_1.png', 'road/floor_3.png', 'road/floor_4.png', 'road/floor_5.png', 'road/floor_6.png',
+             'road/floor_7.png', 'road/floor_8.png']))
         self.rect = self.image.get_rect()
         self.rect.x = x * 30 + 135
         self.rect.y = y * 30 + 30
@@ -340,8 +442,18 @@ class Road(pygame.sprite.Sprite):
         pass
 
 
-class Enemy:
-    pass
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, group, x, y, sprite):
+        super().__init__(group)
+
+        self.image = load_image(sprite)
+        self.rect = self.image.get_rect()
+        self.rect.x = x * 30 + 135
+        self.rect.y = y * 30 + 30
+        self.mask = pygame.mask.from_surface(self.image)
+
+    def update(self):
+        pass
 
 
 con = sqlite3.connect("data_db.sqlite")
@@ -349,9 +461,12 @@ cur = con.cursor()
 data = cur.execute("SELECT login, password, board_id, diary, hero_pos FROM data").fetchall()
 print(data)
 con.close()
+
 road_sprites = pygame.sprite.Group()
+enemy_sprites = pygame.sprite.Group()
 hero_sprites = pygame.sprite.Group()
-board = Board(11, 11, data[0][0], data[0][2], data[0][3], data[0][4], hero_sprites, road_sprites)
+
+board = Board(11, 11, data[0][0], data[0][2], data[0][3], data[0][4], hero_sprites, road_sprites, enemy_sprites)
 fps = 45
 clock = pygame.time.Clock()
 
@@ -373,7 +488,7 @@ while running:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             screen.fill((0, 0, 0))
             board.on_click(event.pos)
-            print(event.pos)
+
         if event.type == pygame.MOUSEMOTION and pygame.mouse.get_focused():
             screen.fill((0, 0, 0))
             board.cell_vision(event.pos)
@@ -384,6 +499,7 @@ while running:
     road_sprites.draw(screen)
     board.render_board(screen, pos)
     hero_sprites.draw(screen)
+    enemy_sprites.draw(screen)
     if pygame.mouse.get_focused():
         pygame.mouse.set_visible(False)
         arrow_sprites.draw(screen)
