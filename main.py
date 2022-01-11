@@ -403,6 +403,7 @@ class Hero(pygame.sprite.Sprite):
                                 arrow.rect.x = event.pos[0]
                                 arrow.rect.y = event.pos[1]
                         screen.fill(pygame.Color('Black'))
+                        fight.render(screen)
                         if pygame.mouse.get_focused():
                             pygame.mouse.set_visible(False)
                             arrow_sprites.draw(screen)
@@ -425,7 +426,13 @@ class Hero(pygame.sprite.Sprite):
 
 
 class Fight:
-    pass
+    def __init__(self):
+        self.flag = 0
+
+    def render(self, screen):
+        if self.flag == 0:
+            pass
+        self.flag = 1
 
 
 class Road(pygame.sprite.Sprite):
