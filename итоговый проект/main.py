@@ -3,6 +3,7 @@ import os
 import sys
 import sqlite3
 from pygame.locals import *
+import random
 
 WIDTH = 700
 HEIGHT = 500
@@ -10,7 +11,6 @@ HEIGHT = 500
 
 def load_image(name, colorkey=None):
     fullname = os.path.join('data', name)
-    # если файл не существует, то выходим
     if not os.path.isfile(fullname):
         print(f"Файл с изображением '{fullname}' не найден")
         sys.exit()
@@ -29,8 +29,10 @@ pygame.init()
 screen_size = (700, 500)
 screen = pygame.display.set_mode(screen_size)
 clock = pygame.time.Clock()
-pygame.display.set_caption('Перемещение героя')
-
+pygame.display.set_caption('THE DUNGEON')
+pygame.mixer.music.load("data/zelda_lo-fi.mp3")
+pygame.mixer.music.play(-1)
+pygame.mixer.music.set_volume(0.1)
 FPS = 50
 
 
@@ -91,9 +93,13 @@ def start_screen():
 
 
 def end_lvl_screen():
+    if vol > 0.05:
+        pygame.mixer.music.set_volume(vol - 0.05)
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                cur.execute(f"""UPDATE users SET vol='{vol}' WHERE login='{data[0]}'""")
+                con.commit()
                 pygame.quit()
                 sys.exit()
             elif event.type == pygame.KEYDOWN:
@@ -134,9 +140,13 @@ def end_lvl_screen():
 
 
 def end_screen():
+    if vol > 0.05:
+        pygame.mixer.music.set_volume(vol - 0.05)
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                cur.execute(f"""UPDATE users SET vol='{vol}' WHERE login='{data[0]}'""")
+                con.commit()
                 pygame.quit()
                 sys.exit()
             elif event.type == pygame.KEYDOWN:
@@ -163,7 +173,7 @@ def end_screen():
             string_rendered = font4.render(f'{moneys}', 1, pygame.Color('white'))
             intro_rect = string_rendered.get_rect()
             intro_rect.top = 250
-            intro_rect.x = 345
+            intro_rect.x = 335
             screen.blit(string_rendered, intro_rect)
 
             font3 = pygame.font.Font("Fifaks10Dev1.ttf", 18)
@@ -171,6 +181,12 @@ def end_screen():
             intro_rect = string_rendered.get_rect()
             intro_rect.top = 450
             intro_rect.x = 165
+            screen.blit(string_rendered, intro_rect)
+
+            string_rendered = font3.render('*Moneys will be saved*', 1, pygame.Color('white'))
+            intro_rect = string_rendered.get_rect()
+            intro_rect.top = 470
+            intro_rect.x = 265
             screen.blit(string_rendered, intro_rect)
 
         pygame.display.flip()
@@ -188,8 +204,8 @@ def load_level(filename):
 
 
 tile_images = {
-    'wall': load_image('brick.png'),
-    'empty': load_image('wall.png')
+    'wall': 'brick.png',
+    'empty': ['floor.png', 'floor1.png', 'floor2.png']
 }
 tile_width = tile_height = 50
 
@@ -225,17 +241,17 @@ class Money(pygame.sprite.Sprite):
         self.frames = ['Coin_1.png', 'Coin_2.png', 'Coin_3.png', 'Coin_4.png', 'Coin_5.png', 'Coin_6.png', 'Coin_7.png',
                        'Coin_8.png', 'Coin_9.png', 'Coin_10.png', 'Coin_11.png', 'Coin_12.png']
         self.cur_frame = 0
-        self.image = pygame.transform.scale(load_image(self.frames[self.cur_frame]), (30, 30))
+        self.image = pygame.transform.scale(load_image(self.frames[self.cur_frame]), (20, 20))
         self.rect = self.image.get_rect()
-        self.rect.x = pos_x * 50 + 10
-        self.rect.y = pos_y * 50 + 10
+        self.rect.x = pos_x * 40 + 10
+        self.rect.y = pos_y * 40 + 10
         self.mask = pygame.mask.from_surface(self.image)
         self.f = 0
 
     def update(self):
         if self.f == 5:
             self.cur_frame = (self.cur_frame + 1) % len(self.frames)
-            self.image = pygame.transform.scale(load_image(self.frames[self.cur_frame]), (30, 30))
+            self.image = pygame.transform.scale(load_image(self.frames[self.cur_frame]), (20, 20))
             self.f = 0
         else:
             self.f += 1
@@ -244,22 +260,40 @@ class Money(pygame.sprite.Sprite):
 class Door(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
         super().__init__(door_group, all_sprites)
-        self.image = pygame.transform.scale(load_image('ladder.png'), (50, 50))
+        self.frames = ['spusk0.png', 'spusk1.png', 'spusk2.png', 'spusk3.png', 'spusk4.png', 'spusk5.png',
+                       'spusk6.png', 'spusk5.png', 'spusk4.png', 'spusk3.png', 'spusk2.png', 'spusk1.png']
+        self.cur_frame = 0
+        self.image = pygame.transform.scale(load_image(self.frames[self.cur_frame]), (40, 40))
         self.rect = self.image.get_rect()
-        self.rect.x = pos_x * 50
-        self.rect.y = pos_y * 50
+        self.rect.x = pos_x * 40
+        self.rect.y = pos_y * 40
         self.mask = pygame.mask.from_surface(self.image)
+        self.f = 0
+
+    def update(self):
+        if self.f == 4:
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+            self.image = pygame.transform.scale(load_image(self.frames[self.cur_frame]), (40, 40))
+            self.f = 0
+        else:
+            self.f += 1
 
 
 class Tile(pygame.sprite.Sprite):
     def __init__(self, tile_type, pos_x, pos_y):
         super().__init__(tiles_group, all_sprites)
-        self.image = pygame.transform.scale(tile_images[tile_type], (50, 50))
-        self.rect = self.image.get_rect()
-        self.rect.x = pos_x * 50
-        self.rect.y = pos_y * 50
+
         if tile_type == 'wall':
+            self.image = pygame.transform.scale(load_image(tile_images[tile_type]), (40, 40))
+            self.rect = self.image.get_rect()
+            self.rect.x = pos_x * 40
+            self.rect.y = pos_y * 40
             self.mask = pygame.mask.from_surface(self.image)
+        else:
+            self.image = pygame.transform.scale(load_image(random.choice(tile_images[tile_type])), (40, 40))
+            self.rect = self.image.get_rect()
+            self.rect.x = pos_x * 40
+            self.rect.y = pos_y * 40
 
 
 class Player(pygame.sprite.Sprite):
@@ -275,9 +309,9 @@ class Player(pygame.sprite.Sprite):
 
         self.image = load_image(self.idle_frames[self.cur_frame])
         self.rect = self.image.get_rect()
-        self.rect.x = pos_x * 50
-        self.rect.y = pos_y * 50
-        self.pos = (pos_x * 50, pos_y * 50)
+        self.rect.x = pos_x * 40
+        self.rect.y = pos_y * 40
+        self.pos = (pos_x * 40, pos_y * 40)
         self.mask = pygame.mask.from_surface(self.image)
         self.direction = 'right'
 
@@ -362,13 +396,12 @@ login = start_screen()
 
 con = sqlite3.connect("data_base.sqlite")
 cur = con.cursor()
-data = cur.execute(f"SELECT login, level, moneys FROM users WHERE login='{login}'").fetchall()
+data = cur.execute(f"SELECT login, level, moneys, vol FROM users WHERE login='{login}'").fetchall()
 if not data:
-    cur.execute(f"INSERT INTO users (login, level, moneys) VALUES ('{login}', {0}, {0})")
+    cur.execute(f"INSERT INTO users (login, level, moneys, vol) VALUES ('{login}', {0}, {0}, {0.3})")
     con.commit()
-    data = cur.execute(f"SELECT login, level, moneys FROM users WHERE login='{login}'").fetchall()
+    data = cur.execute(f"SELECT login, level, moneys, vol FROM users WHERE login='{login}'").fetchall()
 data = data[0]
-
 level_now = data[1]
 level = data[1]
 moneys = data[2]
@@ -380,6 +413,9 @@ running = True
 camera = Camera()
 flag = 0
 flag2 = 0
+
+vol = data[3]
+pygame.mixer.music.set_volume(vol)
 while running:
     if level != level_now:
         all_sprites = pygame.sprite.Group()
@@ -402,14 +438,24 @@ while running:
             end_screen()
         player, max_x, max_y = generate_level(level_map)
         camera = Camera()
+        pygame.mixer.music.set_volume(vol)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+            cur.execute(f"""UPDATE users SET vol='{vol}' WHERE login='{data[0]}'""")
+            con.commit()
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
+                old_vol = vol
+                vol = 0.1
+                pygame.mixer.music.set_volume(vol)
                 fon = pygame.transform.scale(load_image('black.png'), (WIDTH, HEIGHT))
                 screen.blit(fon, (0, 0))
+
+                fon = pygame.transform.scale(load_image('sound_w.png'), (100, 200))
+                screen.blit(fon, (580, 150))
+
                 r = True
                 while r:
                     for event in pygame.event.get():
@@ -419,6 +465,13 @@ while running:
                         elif event.type == pygame.KEYDOWN:
                             if event.key == pygame.K_ESCAPE:
                                 r = False
+                            elif event.key == pygame.K_c:
+                                vol = (vol + 0.1) % 1
+                                pygame.mixer.music.set_volume(vol)
+                            elif event.key == pygame.K_v:
+                                if vol != 0:
+                                    vol = (vol - 0.1) % 1
+                                    pygame.mixer.music.set_volume(vol)
 
                     font5 = pygame.font.Font("Fifaks10Dev1.ttf", 70)
                     string_rendered2 = font5.render(f'Pause', 1, pygame.Color('white'))
@@ -436,6 +489,18 @@ while running:
 
                     pygame.display.flip()
                     clock.tick(FPS)
+                if vol == 0.1:
+                    vol = old_vol
+                    pygame.mixer.music.set_volume(vol)
+                else:
+                    pygame.mixer.music.set_volume(vol)
+            elif event.key == pygame.K_c:
+                vol = (vol + 0.1) % 1
+                pygame.mixer.music.set_volume(vol)
+            elif event.key == pygame.K_v:
+                if vol != 0:
+                    vol = (vol - 0.1) % 1
+                    pygame.mixer.music.set_volume(vol)
 
     if pygame.key.get_pressed()[K_d] and pygame.key.get_pressed()[K_w]:
         move(player, "ru")
@@ -466,10 +531,13 @@ while running:
 
     screen.fill((21, 23, 25))
     tiles_group.draw(screen)
+    for door in door_group:
+        door.update()
     door_group.draw(screen)
     player_group.draw(screen)
     for money in moneys_group:
         money.update()
+
     moneys_group.draw(screen)
     clock.tick(FPS)
     pygame.display.flip()
