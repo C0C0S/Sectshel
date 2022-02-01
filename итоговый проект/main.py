@@ -39,11 +39,11 @@ FPS = 50
 def start_screen():
     login = ''
     words = 'qwertyuiopasdfghjklzxcvbmn_-)(1234567890йцукенгшщзхъэждлорпавыфячсмитьбю '
+    fl = 0
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+                fl = 1
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_BACKSPACE and len(login) > 0:
                     login = login[:-1]
@@ -88,20 +88,24 @@ def start_screen():
                 intro_rect.top = 250
                 intro_rect.x = 280
                 screen.blit(string_rendered, intro_rect)
-        pygame.display.flip()
-        clock.tick(FPS)
+        if fl == 0:
+            pygame.display.flip()
+            clock.tick(FPS)
+        else:
+            pygame.quit()
+            sys.exit()
 
 
 def end_lvl_screen():
     if vol > 0.05:
         pygame.mixer.music.set_volume(vol - 0.05)
+    fl = 0
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 cur.execute(f"""UPDATE users SET vol='{vol}' WHERE login='{data[0]}'""")
                 con.commit()
-                pygame.quit()
-                sys.exit()
+                fl = 1
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
                     return
@@ -134,21 +138,24 @@ def end_lvl_screen():
             intro_rect.top = 450
             intro_rect.x = 200
             screen.blit(string_rendered, intro_rect)
-
-        pygame.display.flip()
-        clock.tick(FPS)
+        if fl == 0:
+            pygame.display.flip()
+            clock.tick(FPS)
+        else:
+            pygame.quit()
+            return True
 
 
 def end_screen():
     if vol > 0.05:
         pygame.mixer.music.set_volume(vol - 0.05)
+    fl = 0
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 cur.execute(f"""UPDATE users SET vol='{vol}' WHERE login='{data[0]}'""")
                 con.commit()
-                pygame.quit()
-                sys.exit()
+                fl = 1
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
                     return
@@ -189,8 +196,12 @@ def end_screen():
             intro_rect.x = 265
             screen.blit(string_rendered, intro_rect)
 
-        pygame.display.flip()
-        clock.tick(FPS)
+        if fl == 0:
+            pygame.display.flip()
+            clock.tick(FPS)
+        else:
+            pygame.quit()
+            return True
 
 
 def load_level(filename):
@@ -428,14 +439,20 @@ while running:
             level_now = level
             cur.execute(f"""UPDATE users SET level='{level}', moneys='{moneys}' WHERE login='{data[0]}'""")
             con.commit()
-            end_lvl_screen()
+            fla = end_lvl_screen()
+            if fla:
+                running = False
+                break
         except:
             level = 0
             level_now = 0
             level_map = load_level(f'{level}.txt')
             cur.execute(f"""UPDATE users SET level='{level}', moneys='{moneys}' WHERE login='{data[0]}'""")
             con.commit()
-            end_screen()
+            fla = end_screen()
+            if fla:
+                running = False
+                break
         player, max_x, max_y = generate_level(level_map)
         camera = Camera()
         pygame.mixer.music.set_volume(vol)
